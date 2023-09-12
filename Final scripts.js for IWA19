@@ -1,0 +1,289 @@
+import {authors, books, genres, BOOKS_PER_PAGE} from './data.js'
+
+ const matches = books
+ let page = 1 ;
+ const range = [0, BOOKS_PER_PAGE]
+
+ if (!books && !Array.isArray(books)) {
+  throw new Error('Source required') 
+ }
+if (!range && range.length < 2) {
+  throw new Error('Range must be an array with two numbers')
+}
+
+// A list of everything that is needed to be fetched from the html document 
+const dataHeaderSearch = document.querySelector('[data-header-search]') // The button that opens the search form
+const dataHeaderOverlay = document.querySelector('[data-search-overlay]') // The overlay containing the search form 
+const dataSearchForm = document.querySelector('[data-search-form]'); // The actual search form
+const dataSearchCancel = document.querySelector('[data-search-cancel]') // The cancel button in the search form
+const dataHeaderSettings = document.querySelector('[data-header-settings]') // The button to open the settings
+const dataSettingsCancel = document.querySelector('[data-settings-cancel]') // The cancel button in the settings form
+const themeChoice = document.querySelector('[data-settings-theme]') // The options or values within the settings form
+const settingsForm = document.getElementById('settings') // 
+const genreSearch = document.querySelector('[data-search-genres]') // The genre section of the search form
+const authorSearch = document.querySelector('[data-search-authors]') // The author section of the search form
+const dataListButton = document.querySelector('[data-list-button]') // The 'Show More' button
+const dataListItems = document.querySelector('[data-list-items]') // The books loaded in the preview created
+const dataListActive = document.querySelector('[data-list-active]') // An active book that has been clicked on 
+const dataListCancel = document.querySelector('[data-list-close]') // Closes the active/ selected book
+const dataListImage = document.querySelector('[data-list-image]') // the image within each list item
+const dataListTitle = document.querySelector('[data-list-title]') // the title of each book
+const dataListDescription = document.querySelector('[data-list-description]') // the description of each book
+const dataListSubtitle = document.querySelector('[data-list-subtitle]') // This becomes the author's name
+const dataListBlur = document.querySelector('[data-list-blur]') // This is the background of the dataListActive overlay
+const dataSettingsOverlay = document.querySelector('[data-settings-overlay]')
+
+
+
+// Opens the search overlay to allow a user to search books by title, genre or author.//
+dataHeaderSearch.addEventListener('click', () =>
+dataHeaderOverlay.show()
+)
+
+// Closes the search overlay when cancel is clicked. //
+dataSearchCancel.addEventListener('click', () =>
+dataHeaderOverlay.close(),
+)
+
+// Opens the settings overlay to allow user to choose light or dark theme. //
+dataHeaderSettings.addEventListener('click', () =>
+dataSettingsOverlay.show()
+)
+
+// Closes the settings overlay. //
+dataSettingsCancel.addEventListener('click', () =>
+dataSettingsOverlay.close()
+)
+// Closes the dataListActive overlay when you click on close
+dataListCancel.addEventListener('click', () =>
+dataListActive.close()
+)
+ 
+ // CHANGES THE DISPLAY DEPENDING ON WHAT THEME IS SELECTED
+/* Changes the theme of the website based on whether day or night is selected.
+ * Day is a light coloured screen and night is a dark coloured screen. */
+ const style = {
+ day : {
+    dark: '10, 10, 20',
+    light: '255, 255, 255',
+},
+ night : {
+    dark: '255, 255, 255',
+    light: '10, 10, 20',
+}
+ }
+
+// This code runs when the submit button is clicked in the settings overlay
+settingsForm.addEventListener('submit', (event) => { 
+event.preventDefault();
+const theme = themeChoice.value; // Gets the value of the theme selected
+document.documentElement.style.setProperty('--color-dark', style[theme].dark), // Sets the style according to the relevant theme chosen
+document.documentElement.style.setProperty('--color-light', style[theme].light)
+document.querySelector('[data-settings-overlay]').close() // Closes the overlay when a theme is chosen 
+}
+)
+  const darkTheme = window.matchMedia("(prefers-color-scheme: dark)").matches // Determines if the media query is true / matches
+
+  const chooseTheme = darkTheme ? 'night' : 'day' // If the value is 'night', the display will be dark, otherwise it will be light (day)
+
+  document.documentElement.style.setProperty('--color-dark', style[chooseTheme].dark) // Sets theme to dark
+  document.documentElement.style.setProperty('--color-light', style[chooseTheme].light) // Sets theme to light
+
+ // CODE TO CREATE THE VALUES FOR "GENRES" AND "AUTHORS" WITHIN THE SEARCH FORM  
+ // Allows the user to select the genre they want from a drop down list of preselected genres
+  const genre = Object.values(genres) // Gets the values of the key value pair in the genres object of data.js
+  let genreElement = document.createElement("option") // Creates the area where the options can be listed
+  genreElement.innerHTML = 'All Genres' // The original text within the genre element
+  genreElement.value = 'any' // Sets the value to any to be used later
+  genreSearch.appendChild(genreElement) // Gives the genre search area the value of the genre element we just created
+  for (let i = 0; i < genre.length; i++) { 
+    let options = genre[i] // The options are from the list of genres 
+    let genreElement = document.createElement("option") 
+    genreElement.innerHTML = options // The drop down list created will have the values of the names of the genres
+    genreElement.value = options 
+    genreSearch.appendChild(genreElement) // The list will be as long as the list of possible genres and amends to this 
+  }
+
+  /* Allows the user to select the author they want from a drop down list of all available authors
+   * The descriptions are the same as for creating the genres list above, but for authors */
+  const authorOption = Object.values(authors) 
+  let element = document.createElement("option")
+    element.innerHTML = 'All Authors'
+    element.value = 'any'
+    authorSearch.appendChild(element)
+  for (let i = 0; i < authorOption.length; i++) {
+    let options = authorOption[i]
+    let element = document.createElement("option")
+    element.innerHTML = options
+    element.value = options
+    authorSearch.appendChild(element)
+  }
+
+// CREATES THE FIRST PAGE OF THE HTML WHICH DISPLAYS THE PREVIEW OF THE FIRST 36 BOOKS IE. BOOKS_PER_PAGE
+let startIndex = range[0] // Sets the start index to 0
+let endIndex = startIndex + BOOKS_PER_PAGE // Sets the end index to 0 (start range) + the value of BOOKS_PER_PAGE
+let bookList = books // Sets bookList to the books array from data.js
+let x = 0; // Define the initial start index
+let y = BOOKS_PER_PAGE; // Define the initial end index
+let increment = BOOKS_PER_PAGE; // Define how many more books to load each time
+
+function displayBooksList(DomAppend, bookList, startIndex, endIndex) {
+    const fragment = document.createDocumentFragment(); 
+    
+    // Loop through the bookList within the specified range
+    for (let i = startIndex; i < endIndex && i < bookList.length; i++) {
+        const { author, image, title, id } = bookList[i]; // Destructuring to create bookList[i]
+        let element = document.createElement('button'); // Create a clickable button which will be the book preview
+        element.classList = 'preview'; 
+        element.setAttribute('data-preview', id);
+        element.innerHTML = /* html */ // Creates the content for the button including the relating image, title and author of each book
+            `<img
+                class="preview__image"
+                src="${image}" 
+            />
+            <div class="preview__info">
+                <h3 class="preview__title">${title}</h3>
+                <div class="preview__author">${authors[author]}</div>
+            </div>`;
+        
+        fragment.appendChild(element); // Appends the fragment to contain the button
+    }
+    
+    DomAppend.appendChild(fragment); // Appends the actual webpage to contain the fragment with the button we just created
+}
+displayBooksList(dataListItems, bookList, x, y); // Initial display of books
+
+// DISPLAYS A MORE DETAILED OVERVIEW OF THE BOOK WHEN YOU CLICK ON IT 
+// Attach a click event listener to the parent container
+dataListItems.addEventListener('click', (event) => {
+  
+  if (event.target.classList.contains('preview')) { // Check if the clicked element is a book button
+    const previewId = event.target.getAttribute('data-preview'); // Get the book's ID from the clicked button
+    const active = books.find((singleBook) => singleBook.id === previewId); // Active is the single book that was clicked on
+
+    if (active) {
+      // Populate and display the book details overlay
+      dataListActive.open = true; // Opens the detailed overlay
+      dataListImage.src = active.image; // Displays the image associated with the clicked book
+      dataListBlur.src = active.image; 
+      dataListTitle.innerText = active.title; // Displays the title matching the active book title
+      dataListSubtitle.innerText = `${authors[active.author]} (${new Date(active.published).getFullYear()})`; // Adds the author name and publication date to a subtitle
+      dataListDescription.innerText = active.description; // Adds the coorrect description for the selected book
+
+      // Attach a click event listener to the close button
+      dataListCancel.addEventListener('click', () => (dataListActive.open = false));
+    }
+  }
+});
+
+// INITIALISES THE DISPLAYED BOOK LIST BASED ON THE FILTERS FROM THE SEARCH FORM    
+dataSearchForm.addEventListener('submit', (event) => {
+    event.preventDefault(); // Stops the page reloading when submit is clicked
+    const title = event.target.querySelector('[data-search-title]').value.toLowerCase(); // Sets the title to lower case
+    const author = event.target.querySelector('[data-search-authors]').value.toLowerCase(); // Sets the author to lower case
+    const genre = event.target.querySelector('[data-search-genres]').value.toLowerCase(); // Sets the genre to lower case
+
+    const filters = { // Creates an object ccntaining some of the information from the books array
+        title,
+        author,
+        genre,
+    };
+    let results = filterBooks(books, filters); // Lets results equal the filterBooks function
+  
+    dataListItems.innerHTML = '';  // Clear the existing book list
+    // Display the search results
+     displayBooksList2(dataListItems, results);
+     updateShowMore() // Updates the Show More button so that it has the correct number being displayed
+ });
+// Checks to see if there are any books that match the search criteria and pushes them to the dataListItems to be displayed
+
+ function filterBooks(books, filters) { 
+  const filteredBooks = books.filter((book) => { // Checks if the books match the filters
+      const titleMatch = filters.title.trim() === '' || book.title.toLowerCase().includes(filters.title.toLowerCase()); 
+      const authorMatch = filters.author == 'any' || authors[book.author].toLowerCase() === filters.author.toLowerCase();
+      const genreMatch = filters.genre === 'any' ||  book.genres.includes(Object.keys(genres).find(key => genres[key]))
+
+  return titleMatch && authorMatch && genreMatch; // Returns the books that do match those filters 
+  
+});
+ // Display a message if there are no matches
+if (filteredBooks.length === 0) {
+    const noMatchFound = document.querySelector('[data-list-message]'); // Selects the message from the html file
+    noMatchFound.style.display = 'block' // Displays the message 
+    dataHeaderOverlay.close(); // Closes the search overlay
+  }
+dataHeaderOverlay.close()
+return filteredBooks // returns the filtered books that match the search criteria
+}
+// THIS FUNCTION IS WHAT ACTUALLY DISPLAYS THE FILTERED BOOKS 
+function displayBooksList2(dataListItems, books) { // We use the data list items and the books array as arguments
+  const bookFragment = document.createDocumentFragment() 
+      for (const book of books) { // For each book from the list of filtered books, display the preview 
+    
+        const elementNew = document.createElement('button'); // Same logic as the original displayBooksList function
+        elementNew.classList = 'preview';
+        elementNew.setAttribute('data-preview', book.id); // Except these match the search criteria
+        elementNew.innerHTML = `
+            <img 
+            class="preview__image" src="${book.image}" 
+            />
+            <div class="preview__info">
+                <h3 class="preview__title">${book.title}</h3>
+                <div class="preview__author">${authors[book.author]}</div>
+            </div>`;
+
+        bookFragment.appendChild(elementNew) // The new book list display is created
+     } 
+     dataListItems.appendChild(bookFragment) // And appended to the document
+    } 
+
+let remainingBooks = books.length- BOOKS_PER_PAGE // Gets the original number of books in the data.js file
+
+// SHOW MORE BUTTON CODE REGARDING TEXT AND FUNCTIONALITY
+//  Adding "Show more" text onto the button that updates the remaining number every time it is clicked
+dataListButton.innerText = `Show more (${remainingBooks})` // Displays the number of books available to load
+
+// A function that updates the dataListButton text after each time loading more books
+function updateShowMore () {
+    if (remainingBooks >= BOOKS_PER_PAGE || remainingBooks > 0)
+dataListButton.innerText = `Show more (${remainingBooks})`}
+
+// A function that checks to see if there are <= 0 books left and then disabling the button if that statement is true
+function checkButtonStatus() {
+    if (remainingBooks <= 0) {
+        loadMoreBooks()
+      dataListButton.disabled = true; // Disable the button
+    } else {
+      dataListButton.disabled = false; // Enable the button
+    }
+  }
+
+// A function that updates the remaining books value each time dataListButton is clicked
+dataListButton.addEventListener('click', () => {
+remainingBooks -= BOOKS_PER_PAGE;
+
+if (remainingBooks <= 0) { 
+dataListButton.innerText = `Show more (0)` // Sets remaining books to 0 so a user knows there is nothing more to load 
+dataListButton.disabled = true
+}
+updateShowMore(); // Calls this function again to update it each time the button is clicked
+checkButtonStatus() // Checks to see if the button is active or disabled after each click 
+})
+ 
+// FUNCTION THAT ALLOWS MORE BOOKS TO BE LOADED WITH THE CORRECT INCREMENTATION EACH TIME
+function loadMoreBooks() {
+  // Update the start and end indices for the next batch of books
+  x = y; // Move the start index to the previous end index
+  y += increment; // Increase the end index by the increment value
+
+  displayBooksList(dataListItems, bookList, x, y); // Display the next batch of books
+
+  // Check if there are more books to load
+  if (y >= bookList.length) {
+      updateShowMore(),
+      // Hide the "Load More" button if all books are loaded
+      dataListButton.disabled = true;
+  }
+}
+// Attach a click event handler to the "Load More" button
+dataListButton.addEventListener('click', loadMoreBooks);
